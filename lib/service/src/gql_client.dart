@@ -51,6 +51,12 @@ class GQLClient {
         }
       }
 
+      // Token extraction from response headers (X-Authorization / Authorization)
+      if (_gqlConfig.onTokenReceived != null ||
+          _gqlConfig.onUnauthorized != null) {
+        finalLink = Link.from([_responseLink(), finalLink]);
+      }
+
       // Add logging link if enabled
       if (enableLogging) {
         finalLink = Link.from([GQLLogger(), finalLink]);
@@ -104,7 +110,14 @@ class GQLClient {
       }
 
       if (response.hasException) {
-        throw response.exception!;
+        final ex = response.exception!;
+        if (_gqlConfig.onUnauthorized != null &&
+            ex.graphqlErrors.any(
+              (e) => e.extensions?['code'] == 'UNAUTHORIZED',
+            )) {
+          _gqlConfig.onUnauthorized!();
+        }
+        throw ex;
       }
 
       if (response.data == null) {
@@ -154,7 +167,14 @@ class GQLClient {
       }
 
       if (response.hasException) {
-        throw response.exception!;
+        final ex = response.exception!;
+        if (_gqlConfig.onUnauthorized != null &&
+            ex.graphqlErrors.any(
+              (e) => e.extensions?['code'] == 'UNAUTHORIZED',
+            )) {
+          _gqlConfig.onUnauthorized!();
+        }
+        throw ex;
       }
 
       if (response.data == null) {
@@ -182,6 +202,51 @@ class GQLClient {
       );
     }
   }
+
+  Link _responseLink() {
+    return Link.function((request, [forward]) async* {
+      await for (final response in forward!(request)) {
+        final ctx = response.context.entry<HttpLinkResponseContext>();
+
+        if (_gqlConfig.onTokenReceived != null && ctx != null) {
+          final authHeader =
+              ctx.headers?['authorization'] ??
+              ctx.headers?['Authorization'] ??
+              ctx.headers?['x-authorization'] ??
+              ctx.headers?['X-Authorization'];
+          if (authHeader != null && authHeader.isNotEmpty) {
+            final token =
+                authHeader
+                    .replaceFirst(
+                      RegExp(r'Bearer\s+', caseSensitive: false),
+                      '',
+                    )
+                    .trim();
+            if (token.isNotEmpty) {
+              await _gqlConfig.onTokenReceived!(token);
+            }
+          }
+        }
+
+        if (_gqlConfig.onUnauthorized != null) {
+          final isHttp401 = ctx?.statusCode == 401;
+          final isUnauthenticated =
+              response.errors?.any((e) {
+                final code = e.extensions?['code'];
+                return code == 'UNAUTHENTICATED' || code == 'UNAUTHORIZED';
+              }) ??
+              false;
+          if (isHttp401 || isUnauthenticated) {
+            _gqlConfig.onUnauthorized!();
+          }
+        }
+
+        yield response;
+      }
+    });
+  }
+
+  void dispose() {}
 
   bool saveCacheData(String dataID, Map<String, dynamic> data) {
     try {

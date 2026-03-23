@@ -15,6 +15,8 @@ class GQLConfig {
   final FetchPolicy? watchMutationPolicy;
   final FetchPolicy? subscribePolicy;
   final List<String>? responseNodePaths;
+  final Future<void> Function(String token)? onTokenReceived;
+  final void Function()? onUnauthorized;
 
   GQLConfig({
     required this.baseURL,
@@ -29,5 +31,7 @@ class GQLConfig {
     this.watchMutationPolicy,
     this.subscribePolicy,
     this.responseNodePaths,
+    this.onTokenReceived,
+    this.onUnauthorized,
   });
 }
