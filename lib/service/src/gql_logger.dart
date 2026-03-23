@@ -36,7 +36,11 @@ class GQLLogger extends Link {
       log('📋 Variables: ${_formatJson(request.variables)}');
     }
 
-    log('📄 Query: ${operation.document.definitions.first.toString()}');
+    final definition = operation.document.definitions.first;
+    final operationName = definition is OperationDefinitionNode
+        ? (definition.name?.value ?? 'anonymous')
+        : definition.toString();
+    log('📄 Query: $operationName');
     log('═══════════════════════════════════════════════════════');
   }
 

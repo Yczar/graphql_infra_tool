@@ -74,4 +74,7 @@ class AppError extends GQLException {
   @override
   final AppErrorModel errorModel;
   const AppError(this.errorModel);
+
+  @override
+  String toString() => 'AppError(code: ${errorModel.code}, message: ${errorModel.message})';
 }
