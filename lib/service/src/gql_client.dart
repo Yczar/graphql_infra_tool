@@ -110,7 +110,12 @@ class GQLClient {
       }
 
       if (response.hasException) {
-        final data = response.data;
+        final ex = response.exception!;
+        final data =
+            response.data ??
+            (ex.linkException is ServerException
+                ? (ex.linkException as ServerException).parsedResponse?.data
+                : null);
         if (data != null) {
           final fieldName = _getFieldName(document);
           final node = data[fieldName];
@@ -121,7 +126,6 @@ class GQLClient {
             ));
           }
         }
-        final ex = response.exception!;
         if (_gqlConfig.onUnauthorized != null &&
             ex.graphqlErrors.any(
               (e) => e.extensions?['code'] == 'UNAUTHORIZED',
@@ -178,7 +182,12 @@ class GQLClient {
       }
 
       if (response.hasException) {
-        final data = response.data;
+        final ex = response.exception!;
+        final data =
+            response.data ??
+            (ex.linkException is ServerException
+                ? (ex.linkException as ServerException).parsedResponse?.data
+                : null);
         if (data != null) {
           final fieldName = _getFieldName(document);
           final node = data[fieldName];
@@ -189,7 +198,6 @@ class GQLClient {
             ));
           }
         }
-        final ex = response.exception!;
         if (_gqlConfig.onUnauthorized != null &&
             ex.graphqlErrors.any(
               (e) => e.extensions?['code'] == 'UNAUTHORIZED',
