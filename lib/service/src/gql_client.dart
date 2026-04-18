@@ -110,6 +110,17 @@ class GQLClient {
       }
 
       if (response.hasException) {
+        final data = response.data;
+        if (data != null) {
+          final fieldName = _getFieldName(document);
+          final node = data[fieldName];
+          if (node is Map<String, dynamic> && node['__typename'] == 'Error') {
+            throw AppError(AppErrorModel(
+              message: node['message'] ?? 'Unknown error',
+              code: node['code'] ?? 'NO_CODE',
+            ));
+          }
+        }
         final ex = response.exception!;
         if (_gqlConfig.onUnauthorized != null &&
             ex.graphqlErrors.any(
@@ -167,6 +178,17 @@ class GQLClient {
       }
 
       if (response.hasException) {
+        final data = response.data;
+        if (data != null) {
+          final fieldName = _getFieldName(document);
+          final node = data[fieldName];
+          if (node is Map<String, dynamic> && node['__typename'] == 'Error') {
+            throw AppError(AppErrorModel(
+              message: node['message'] ?? 'Unknown error',
+              code: node['code'] ?? 'NO_CODE',
+            ));
+          }
+        }
         final ex = response.exception!;
         if (_gqlConfig.onUnauthorized != null &&
             ex.graphqlErrors.any(
