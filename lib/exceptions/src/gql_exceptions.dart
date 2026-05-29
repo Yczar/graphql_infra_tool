@@ -1,5 +1,7 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:graphql_infra_tool/config/src/gql_exception_provider.dart';
+import 'package:graphql_infra_tool/config/src/gql_exception_parser.dart';
 import 'package:graphql_infra_tool/exceptions/src/gql_error_model.dart';
 
 sealed class GQLException implements Exception {
@@ -7,35 +9,35 @@ sealed class GQLException implements Exception {
 
   factory GQLException.fromException(
     dynamic exception, {
-    List<GQLExceptionProvider>? exceptionProviders,
+    List<GQLExceptionParser>? exceptionParsers,
   }) {
+    
+    // Project-level parsers
+    if (exceptionParsers != null) {
+      for (final parser in exceptionParsers) {
+        final result = parser.parse(exception);
+        if (result != null) return result;
+      }
+    }
+
+    // Built-in paths
     if (exception is Exception) {
       if (exception is OperationException) {
         if (exception.graphqlErrors.isNotEmpty) {
           final graphqlError = exception.graphqlErrors[0];
           final errorMessage = graphqlError.message;
-          final errorCode = graphqlError.extensions?["code"] ?? 'NO_CODE';
+          final errorCode = graphqlError.extensions?['code'] ?? 'NO_CODE';
           final extensions = graphqlError.extensions;
 
-          // Check custom exception providers first (similar to auth providers)
-          if (exceptionProviders != null && exceptionProviders.isNotEmpty) {
-            for (final provider in exceptionProviders) {
-              if (provider.errorCode == errorCode) {
-                final customException = provider.createException(
-                  errorCode,
-                  errorMessage,
-                  extensions,
-                );
-                if (customException != null) {
-                  return customException;
-                }
-              }
-            }
-          }
           return AppError(
-            AppErrorModel(message: errorMessage, code: errorCode),
+            AppErrorModel(
+              message: errorMessage,
+              code: errorCode,
+              extensions: extensions,
+            ),
           );
         }
+
         return AppError(AppErrorModel(message: 'Unknown GraphQL error'));
       } else if (exception is GQLException) {
         return exception;
@@ -45,9 +47,8 @@ sealed class GQLException implements Exception {
     } else {
       if (exception is String && exception.contains('is not a subtype of')) {
         return const UnableToProcessError();
-      } else {
-        return const UnExpectedError();
       }
+      return const UnExpectedError();
     }
   }
 

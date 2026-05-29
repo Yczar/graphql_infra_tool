@@ -1,12 +1,31 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:graphql_infra_tool/config/src/gql_auth_provider.dart';
-import 'package:graphql_infra_tool/config/src/gql_exception_provider.dart';
+import 'package:graphql_infra_tool/config/src/gql_exception_parser.dart';
+import 'package:graphql_infra_tool/interceptor/src/gql_interceptor.dart';
 
 class GQLConfig {
   final String baseURL;
   final TokenCallback? bearerToken;
   final List<GQLAuthProvider>? authProviders;
-  final List<GQLExceptionProvider>? exceptionProviders;
+
+  /// See [GQLExceptionParser] for implementation guidance.
+  final List<GQLExceptionParser>? exceptionParsers;
+
+  /// Interceptors to run on every request/response/error.
+  ///
+  /// Processed by [GQLInterceptorLink] which is inserted before all
+  /// [AuthLink]s so retries pick up the freshly stored token. Interceptors
+  /// execute in list order.
+  ///
+  /// Example — token refresh + cache:
+  /// ```dart
+  /// interceptors: [
+  ///   GQLTokenRefreshInterceptor(provider: myRefreshProvider),
+  ///   MyCacheInterceptor(),
+  /// ]
+  /// ```
+  final List<GQLInterceptor>? interceptors;
+
   final Map<String, String>? defaultHeaders;
   final Store? cacheStore;
   final FetchPolicy? queryPolicy;
@@ -20,7 +39,8 @@ class GQLConfig {
     required this.baseURL,
     this.bearerToken,
     this.authProviders,
-    this.exceptionProviders,
+    this.exceptionParsers,
+    this.interceptors,
     this.defaultHeaders,
     this.cacheStore,
     this.queryPolicy,
