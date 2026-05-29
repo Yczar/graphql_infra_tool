@@ -1,6 +1,6 @@
 name: graphql_infra_tool
 description: A comprehensive Flutter package providing a robust wrapper around GraphQL operations with built-in error handling, authentication, caching, and logging capabilities.
-version: 1.0.1
+version: 1.1.0
 homepage: https://pub.dev/packages/graphql_infra_tool
 repository: https://github.com/benhaxe/graphql_infra_tool
 issue_tracker: https://github.com/benhaxe/graphql_infra_tool/issues
