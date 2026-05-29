@@ -1,3 +1,56 @@
+## 1.1.0
+
+### Added
+* `GQLInterceptor` — abstract middleware hook with `onRequest`, `onResponse`, and `onError` lifecycle callbacks
+* `GQLInterceptorLink` — a single `Link` that drives a list of `GQLInterceptor` instances, sitting before auth links so retries always pick up fresh tokens
+* `GQLTokenRefreshProvider` — base class for implementing proactive and reactive token refresh strategies
+* `GQLExceptionParser` — new pluggable extension point for project-level exception parsing; implement `parse(dynamic rawException)` and pass instances via `GQLConfig.exceptionParsers`
+* `interceptors` field on `GQLConfig` to register custom `GQLInterceptor` instances
+* `exceptionParsers` field on `GQLConfig` to register custom `GQLExceptionParser` instances
+
+### Removed
+* `GQLExceptionProvider` — replaced by the more flexible `GQLExceptionParser`. If you were using `GQLExceptionProvider`, migrate to `GQLExceptionParser` (see migration guide below)
+* `exceptionProviders` field removed from `GQLConfig`
+
+### Migration Guide
+
+**Exception parsing — before:**
+```dart
+class MyExceptionProvider extends GQLExceptionProvider {
+  @override
+  String get errorCode => 'MY_ERROR';
+
+  @override
+  GQLException? createException(String errorCode, String? message, Map<String, dynamic>? extensions) {
+    return AppError(AppErrorModel(message: message, code: errorCode));
+  }
+}
+
+GQLConfig(
+  baseURL: '...',
+  exceptionProviders: [MyExceptionProvider()],
+);
+```
+
+**Exception parsing — after:**
+```dart
+class MyExceptionParser extends GQLExceptionParser {
+  @override
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
+    final error = rawException.graphqlErrors[0];
+    if (error.extensions?['code'] != 'MY_ERROR') return null;
+    return AppError(AppErrorModel(message: error.message, code: 'MY_ERROR'));
+  }
+}
+
+GQLConfig(
+  baseURL: '...',
+  exceptionParsers: [MyExceptionParser()],
+);
+```
+
 ## 1.0.0
 
 - Initial version.

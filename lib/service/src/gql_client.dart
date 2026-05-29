@@ -21,7 +21,10 @@ class GQLClient {
     try {
       final httpLink = HttpLink(
         _gqlConfig.baseURL,
-        defaultHeaders: {'Content-Type': 'application/json'},
+        defaultHeaders: {
+          'Content-Type': 'application/json',
+          ...?_gqlConfig.defaultHeaders,
+        },
       );
 
       //Create auth link if bearer token is provided.
@@ -51,6 +54,15 @@ class GQLClient {
         }
       }
 
+      // Interceptor link sits before all AuthLinks so that the retry callback
+      // passes through them again and picks up the freshly stored token.
+      if (_gqlConfig.interceptors != null &&
+          _gqlConfig.interceptors!.isNotEmpty) {
+        finalLink = GQLInterceptorLink(
+          interceptors: _gqlConfig.interceptors!,
+        ).concat(finalLink);
+      }
+
       // Add logging link if enabled
       if (enableLogging) {
         finalLink = Link.from([GQLLogger(), finalLink]);
@@ -71,7 +83,7 @@ class GQLClient {
     } catch (exception) {
       throw GQLException.fromException(
         exception,
-        exceptionProviders: _gqlConfig.exceptionProviders,
+        exceptionParsers: _gqlConfig.exceptionParsers,
       );
     }
   }
@@ -121,7 +133,7 @@ class GQLClient {
     } catch (exception) {
       throw GQLException.fromException(
         exception,
-        exceptionProviders: _gqlConfig.exceptionProviders,
+        exceptionParsers: _gqlConfig.exceptionParsers,
       );
     }
   }
@@ -178,7 +190,7 @@ class GQLClient {
     } catch (exception) {
       throw GQLException.fromException(
         exception,
-        exceptionProviders: _gqlConfig.exceptionProviders,
+        exceptionParsers: _gqlConfig.exceptionParsers,
       );
     }
   }

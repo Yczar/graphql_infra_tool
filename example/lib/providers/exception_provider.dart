@@ -1,104 +1,68 @@
-import 'package:graphql_infra_tool/config/src/gql_exception_provider.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:graphql_infra_tool/config/src/gql_exception_parser.dart';
 import 'package:graphql_infra_tool/exceptions/src/gql_error_model.dart';
 import 'package:graphql_infra_tool/exceptions/src/gql_exceptions.dart';
 
-class HttpExceptionProvider implements GQLExceptionProvider {
+/// Handles standard HTTP error codes surfaced via GraphQL errors.
+class HttpExceptionParser extends GQLExceptionParser {
   @override
-  String get errorCode => 'HTTP_EXCEPTION';
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
 
-  @override
-  GQLException? createException(
-    String errorCode,
-    String? errorMessage,
-    Map<String, dynamic>? extensions,
-  ) {
-    final status = extensions?['status'];
-    switch (status) {
-      case 401:
-        return AppError(
-          AppErrorModel(
-            message: 'Authentication required. Please log in again.',
-            code: 'UNAUTHORIZED',
-          ),
-        );
-      case 403:
-        return AppError(
-          AppErrorModel(
-            message: 'You do not have permission to perform this action.',
-            code: 'FORBIDDEN',
-          ),
-        );
-      case 404:
-        return AppError(
-          AppErrorModel(
-            message: 'The requested resource was not found.',
-            code: 'NOT_FOUND',
-          ),
-        );
-      case 500:
-        return AppError(
-          AppErrorModel(
-            message: 'Internal server error. Please try again later.',
-            code: 'INTERNAL_SERVER_ERROR',
-          ),
-        );
-      default:
-        return AppError(
-          AppErrorModel(
-            message: errorMessage ?? 'An HTTP error occurred',
-            code: errorCode,
-          ),
-        );
-    }
+    final error = rawException.graphqlErrors[0];
+    final code = error.extensions?['code'] as String?;
+    if (code != 'HTTP_EXCEPTION') return null;
+
+    final status = error.extensions?['status'] as int?;
+
+    final (message, resolvedCode) = switch (status) {
+      401 => ('Authentication required. Please log in again.', 'UNAUTHORIZED'),
+      403 => ('You do not have permission to perform this action.', 'FORBIDDEN'),
+      404 => ('The requested resource was not found.', 'NOT_FOUND'),
+      500 => ('Internal server error. Please try again later.', 'INTERNAL_SERVER_ERROR'),
+      _ => (error.message, code ?? 'HTTP_EXCEPTION'),
+    };
+
+    return AppError(AppErrorModel(message: message, code: resolvedCode));
   }
 }
 
-class NotFoundExceptionProvider implements GQLExceptionProvider {
+/// Handles resource-not-found errors.
+class NotFoundExceptionParser extends GQLExceptionParser {
   @override
-  String get errorCode => 'NOT_FOUND_ERROR';
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
 
-  @override
-  GQLException? createException(
-    String errorCode,
-    String? errorMessage,
-    Map<String, dynamic>? extensions,
-  ) {
+    final error = rawException.graphqlErrors[0];
+    if (error.extensions?['code'] != 'NOT_FOUND_ERROR') return null;
+
     return AppError(
       AppErrorModel(
-        message: errorMessage ?? 'Resource not found',
-        code: errorCode,
+        message: error.message,
+        code: 'NOT_FOUND_ERROR',
       ),
     );
   }
 }
 
-class ValidationExceptionProvider implements GQLExceptionProvider {
+/// Handles validation errors, surfacing the first validation message.
+class ValidationExceptionParser extends GQLExceptionParser {
   @override
-  String get errorCode => 'VALIDATION_ERROR';
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
 
-  @override
-  GQLException? createException(
-    String errorCode,
-    String? errorMessage,
-    Map<String, dynamic>? extensions,
-  ) {
-    final validationErrors = extensions?['validationErrors'] as List?;
+    final error = rawException.graphqlErrors[0];
+    if (error.extensions?['code'] != 'VALIDATION_ERROR') return null;
 
-    if (validationErrors != null && validationErrors.isNotEmpty) {
-      final firstError = validationErrors.first;
-      return AppError(
-        AppErrorModel(
-          message: firstError['message'] ?? errorMessage ?? 'Validation failed',
-          code: errorCode,
-        ),
-      );
-    }
+    final validationErrors = error.extensions?['validationErrors'] as List?;
+    final message =
+        validationErrors?.isNotEmpty == true
+            ? validationErrors!.first['message'] as String? ?? error.message
+            : error.message;
 
-    return AppError(
-      AppErrorModel(
-        message: errorMessage ?? 'Validation failed',
-        code: errorCode,
-      ),
-    );
+    return AppError(AppErrorModel(message: message, code: 'VALIDATION_ERROR'));
   }
 }

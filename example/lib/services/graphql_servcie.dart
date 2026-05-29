@@ -20,9 +20,9 @@ class GraphQLService {
     final config = GQLConfig(
       baseURL: 'https://api.example.com/graphql',
       authProviders: [BearerTokenProvider(), TenantIdProvider()],
-      exceptionProviders: [
-        HttpExceptionProvider(),
-        NotFoundExceptionProvider(),
+      exceptionParsers: [
+        HttpExceptionParser(),
+        NotFoundExceptionParser(),
       ],
       responseNodePaths: ['data'],
     );
