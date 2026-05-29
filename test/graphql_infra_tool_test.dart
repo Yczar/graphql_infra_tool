@@ -11,7 +11,7 @@ void main() {
 
       expect(config.baseURL, 'https://api.example.com/graphql');
       expect(config.authProviders, isNull);
-      expect(config.exceptionProviders, isNull);
+      expect(config.exceptionParsers, isNull);
     });
 
     test('should support auth providers', () {
@@ -26,16 +26,16 @@ void main() {
       expect(config.authProviders!.first, authProvider);
     });
 
-    test('should support exception providers', () {
-      final exceptionProvider = MockExceptionProvider();
+    test('should support exception parsers', () {
+      final exceptionParser = MockExceptionParser();
       final config = GQLConfig(
         baseURL: 'https://api.example.com/graphql',
-        exceptionProviders: [exceptionProvider],
+        exceptionParsers: [exceptionParser],
       );
 
-      expect(config.exceptionProviders, isNotNull);
-      expect(config.exceptionProviders!.length, 1);
-      expect(config.exceptionProviders!.first, exceptionProvider);
+      expect(config.exceptionParsers, isNotNull);
+      expect(config.exceptionParsers!.length, 1);
+      expect(config.exceptionParsers!.first, exceptionParser);
     });
 
     test('should support custom fetch policies', () {
@@ -99,8 +99,8 @@ void main() {
       expect(appError.errorModel.code, 'TEST_ERROR');
     });
 
-    test('should use custom exception provider', () {
-      final customProvider = MockExceptionProvider();
+    test('should use custom exception parser', () {
+      final customParser = MockExceptionParser();
       final operationException = OperationException(
         graphqlErrors: [
           GraphQLError(
@@ -112,7 +112,7 @@ void main() {
 
       final exception = GQLException.fromException(
         operationException,
-        exceptionProviders: [customProvider],
+        exceptionParsers: [customParser],
       );
 
       expect(exception, isA<AppError>());
@@ -154,8 +154,8 @@ void main() {
     });
 
     test('should support pattern matching', () {
-      final successResult = Success(data: 42);
-      final failureResult = Failure(
+      final GQLResult<int> successResult = Success(data: 42);
+      final GQLResult<int> failureResult = Failure(
         exception: AppError(AppErrorModel(message: 'Error')),
       );
 

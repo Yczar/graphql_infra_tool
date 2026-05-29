@@ -1,17 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:graphql_infra_tool/graphql_infra_tool.dart';
 
 void main() {
-  group('GQLExceptionProvider', () {
+  group('GQLExceptionParser', () {
     test('should create custom exception for matching error code', () {
-      final provider = TestExceptionProvider();
+      final parser = TestExceptionParser();
 
-      expect(provider.errorCode, 'TEST_ERROR');
-
-      final exception = provider.createException(
-        'TEST_ERROR',
-        'Test error message',
-        {'status': 400},
+      final exception = parser.parse(
+        OperationException(
+          graphqlErrors: [
+            GraphQLError(
+              message: 'Test error message',
+              extensions: {'code': 'TEST_ERROR', 'status': 400},
+            ),
+          ],
+        ),
       );
 
       expect(exception, isA<AppError>());
@@ -21,84 +25,86 @@ void main() {
     });
 
     test('should return null for non-matching error code', () {
-      final provider = TestExceptionProvider();
+      final parser = TestExceptionParser();
 
-      final exception = provider.createException(
-        'OTHER_ERROR',
-        'Other error message',
-        null,
+      final exception = parser.parse(
+        OperationException(
+          graphqlErrors: [
+            GraphQLError(
+              message: 'Other error message',
+              extensions: {'code': 'OTHER_ERROR'},
+            ),
+          ],
+        ),
       );
 
       expect(exception, isNull);
     });
 
     test('should handle extensions data', () {
-      final provider = StatusExceptionProvider();
+      final parser = StatusExceptionParser();
 
-      final exception = provider.createException(
-        'HTTP_ERROR',
-        'HTTP error occurred',
-        {'status': 401},
+      final exception = parser.parse(
+        OperationException(
+          graphqlErrors: [
+            GraphQLError(
+              message: 'HTTP error occurred',
+              extensions: {'code': 'HTTP_ERROR', 'status': 401},
+            ),
+          ],
+        ),
       );
 
       expect(exception, isA<AppError>());
       final appError = exception as AppError;
       expect(appError.errorModel.message, 'Unauthorized access');
     });
+
+    test('should return null for non-OperationException', () {
+      final parser = TestExceptionParser();
+
+      expect(parser.parse(Exception('raw error')), isNull);
+      expect(parser.parse('some string'), isNull);
+      expect(parser.parse(null), isNull);
+    });
   });
 }
 
-class TestExceptionProvider implements GQLExceptionProvider {
-  @override
-  String get errorCode => 'TEST_ERROR';
+// ── Test implementations ──────────────────────────────────────────────────────
 
+class TestExceptionParser extends GQLExceptionParser {
   @override
-  GQLException? createException(
-    String errorCode,
-    String? errorMessage,
-    Map<String, dynamic>? extensions,
-  ) {
-    if (errorCode == 'TEST_ERROR') {
-      return AppError(
-        AppErrorModel(message: 'Custom test error', code: errorCode),
-      );
-    }
-    return null;
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
+
+    final error = rawException.graphqlErrors[0];
+    final code = error.extensions?['code'] as String?;
+    if (code != 'TEST_ERROR') return null;
+
+    return AppError(AppErrorModel(message: 'Custom test error', code: code));
   }
 }
 
-class StatusExceptionProvider implements GQLExceptionProvider {
+class StatusExceptionParser extends GQLExceptionParser {
   @override
-  String get errorCode => 'HTTP_ERROR';
+  GQLException? parse(dynamic rawException) {
+    if (rawException is! OperationException) return null;
+    if (rawException.graphqlErrors.isEmpty) return null;
 
-  @override
-  GQLException? createException(
-    String errorCode,
-    String? errorMessage,
-    Map<String, dynamic>? extensions,
-  ) {
-    final status = extensions?['status'] as int?;
+    final error = rawException.graphqlErrors[0];
+    final code = error.extensions?['code'] as String?;
+    if (code != 'HTTP_ERROR') return null;
 
-    switch (status) {
-      case 401:
-        return AppError(
-          AppErrorModel(message: 'Unauthorized access', code: errorCode),
-        );
-      case 403:
-        return AppError(
-          AppErrorModel(message: 'Forbidden access', code: errorCode),
-        );
-      case 404:
-        return AppError(
-          AppErrorModel(message: 'Resource not found', code: errorCode),
-        );
-      default:
-        return AppError(
-          AppErrorModel(
-            message: errorMessage ?? 'HTTP error occurred',
-            code: errorCode,
-          ),
-        );
-    }
+    final status = error.extensions?['status'] as int?;
+
+    final message = switch (status) {
+      401 => 'Unauthorized access',
+      403 => 'Forbidden access',
+      404 => 'Resource not found',
+      _ => error.message,
+    };
+
+    return AppError(AppErrorModel(message: message, code: code));
   }
 }
