@@ -35,6 +35,9 @@ class GQLConfig {
   final FetchPolicy? subscribePolicy;
   final List<String>? responseNodePaths;
 
+  /// Timeout for each HTTP request. Defaults to 30 seconds when not set.
+  final Duration? connectionTimeout;
+
   GQLConfig({
     required this.baseURL,
     this.bearerToken,
@@ -49,5 +52,6 @@ class GQLConfig {
     this.watchMutationPolicy,
     this.subscribePolicy,
     this.responseNodePaths,
+    this.connectionTimeout,
   });
 }

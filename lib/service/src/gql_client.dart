@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:graphql_infra_tool/graphql_infra_tool.dart';
 import 'package:graphql_infra_tool/service/src/gql_logger.dart';
 
@@ -25,6 +26,9 @@ class GQLClient {
           'Content-Type': 'application/json',
           ...?_gqlConfig.defaultHeaders,
         },
+        httpClient: _TimeoutClient(
+          _gqlConfig.connectionTimeout ?? const Duration(seconds: 30),
+        ),
       );
 
       //Create auth link if bearer token is provided.
@@ -268,6 +272,17 @@ class GQLClient {
     final fieldData = data[fieldName];
     return _resolveNodePath(fieldData);
   }
+}
+
+class _TimeoutClient extends http.BaseClient {
+  _TimeoutClient(this._timeout);
+
+  final Duration _timeout;
+  final _inner = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request).timeout(_timeout);
 }
 
 String _getFieldName(String value) {
