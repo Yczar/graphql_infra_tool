@@ -83,6 +83,8 @@ class GQLClient {
             fetch: _gqlConfig.mutationPolicy ?? FetchPolicy.networkOnly,
           ),
         ),
+        queryRequestTimeout:
+            null, // rely on _TimeoutClient for HTTP-level timeout
       );
     } catch (exception) {
       throw GQLException.fromException(
