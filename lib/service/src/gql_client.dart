@@ -130,6 +130,7 @@ class GQLClient {
       }
 
       final resolvedData = _getResolvedData(document, response.data!);
+      _throwIfUnionError(resolvedData);
       try {
         return modelParser(resolvedData);
       } catch (e, s) {
@@ -180,6 +181,7 @@ class GQLClient {
       }
 
       final resolvedData = _getResolvedData(document, response.data!);
+      _throwIfUnionError(resolvedData);
 
       if (resolvedData is List) {
         try {
@@ -233,6 +235,24 @@ class GQLClient {
         variables: variable ?? {},
       ),
       data: data,
+    );
+  }
+
+  /// GraphQL union responses that model business errors as a distinct
+  /// `Error` type (returned inside `data` with an HTTP 200, not via the
+  /// `errors` array) can't be deserialized by [modelParser]. Detect that
+  /// shape up front and surface the real message/code instead of letting
+  /// the mismatched cast fail with an opaque [TypeError].
+  void _throwIfUnionError(dynamic resolvedData) {
+    if (resolvedData is! Map<String, dynamic>) return;
+    if (resolvedData['__typename'] != 'Error') return;
+
+    throw AppError(
+      AppErrorModel(
+        message: resolvedData['message'] as String?,
+        code: resolvedData['code'] as String?,
+        extensions: resolvedData,
+      ),
     );
   }
 
